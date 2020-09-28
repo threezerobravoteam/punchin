@@ -1,6 +1,6 @@
 # 电科云nCov2019自动打卡  - 使用说明 
 
- 脚本已经做了异常处理，由于该版本已经改了很多地方，也不想继续再维护，原本的想法是使用PhantomJS + selenium的，但是后来发现PhantomJS有些坑，可能还是用chromedriver较为稳定，而且PhantomJS现在也比较少维护了，但是PhantomJS的好处是可以在无界面的Linux服务器上跑，这也是我比较期待的。这些问题就留给大家自己去研究吧。
+ 脚本已经做了异常处理，由于该版本改了很多地方，也不想继续再维护，原本的想法是使用PhantomJS + selenium的，但是后来发现PhantomJS有些坑，可能还是用chromedriver较为稳定，而且PhantomJS现在也比较少维护了，但是PhantomJS的好处是可以在无界面的Linux服务器上跑，这也是比较期待的,这些问题就留给大家自己去研究吧。
 
 
 ## 安装说明与使用步骤
