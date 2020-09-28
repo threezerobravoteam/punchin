@@ -8,27 +8,27 @@ from selenium.common.exceptions import StaleElementReferenceException
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
+from requests.exceptions import RequestException
 from selenium.webdriver.common.by import By
 from requests.adapters import HTTPAdapter
+import time, json, sys , os, cv2
+import requests, datetime
 from time import sleep
 import numpy as np
-import requests
-import datetime
-import time
-import json
-import sys
-import cv2
+
+
 
 # 参数设置1
 chrome_driver = 'chromedriver路径'
-phone_num = '登录手机号码'
+phone_num = '手机登录号码'
 password = '登录密码'
 url = 'https://asst.cetccloud.com/#/login'
 
 # 参数设置2
 t = datetime.date.today()
+realpath = os.path.realpath(__file__)
 counter = 1
-holiday_api ='http://timor.tech/api/holiday/info/' +str(t)
+holiday_api ='http://timor.tech/api/holiday/info/' + str(t)
 headers = {'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:80.0) Gecko/20100101 Firefox/80.0"}
 options = webdriver.ChromeOptions()
 options.add_argument('user-agent="Mozilla/5.0 (iPhone; CPU iPhone OS 11_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15F79 MicroMessenger/7.0.11(0x17000b21) NetType/WIFI Language/zh_CN"')
@@ -66,7 +66,7 @@ def login(driver,url):
     while True:
         try:
             driver.get(url)
-            print("[-].正在玩命加载小帮手页面")
+            print("[+].正在玩命加载小帮手页面")
             break
         except TimeoutException as e:
             print(e)
@@ -78,17 +78,18 @@ def login(driver,url):
         login_btn = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "login_btn")))
     except TimeoutException as e:
         print("登录元素超时：%s" % e)
+        os.system('python3 ' + realpath)
     username.send_keys(phone_num)
     passwd.send_keys(password)
     login_btn.click()
-    print("[-].正在尝试登录")
+    print("[+].正在尝试登录")
     sleep(0.2)
     return driver
 
 
 # 获取验证码中的图片
 def get_image(driver):
-    print("[-].正在获取验证码图片地址")
+    print("[+].正在获取验证码图片地址")
     sleep(2)
     while True:
         try:
@@ -102,6 +103,7 @@ def get_image(driver):
                 continue
             except NoSuchElementException as NSEE:
                 print("获取不到刷新验证码的元素！\r\n")
+                os.system('python3 ' + realpath)
         else:
             if (bkg_elem and blk_elem):
                 break
@@ -137,13 +139,13 @@ def get_distance(bkg,blk):
     x, y = np.unravel_index(result.argmax(),result.shape)
     #这里就是下图中的绿色框框
     cv2.rectangle(template, (y, x), (y + w, x + h), (7, 249, 151), 2)
-    print('[-].验证码的x坐标为：%d'% y)
+    print('[+].验证码的x坐标为：%d'% y)
     if y > 260:
         try:
             elem = driver.find_element_by_xpath("//div[@class='slide-verify-refresh-icon']")
         except NoSuchElementException as NSEE:
-            print(NSEE)
-            main()
+            print("没有找到验证码刷新元素")
+            os.system('python3 ' + realpath)
         sleep(1)
         elem.click()
         bkg, blk = get_image(driver)
@@ -165,10 +167,10 @@ def get_tracks(dis):
         else:
             a = -3
         v0 = v
-        s = v0*t+0.5*a*(t**2)
+        s = v0 * t + 0.5 * a * (t**2)
         current += s
         tracks.append(round(s))
-        v = v0+a*t
+        v = v0 + a*t
     return tracks
 
 
@@ -184,12 +186,12 @@ def mov_to_gap(driver, distance):
 
 # 工作日打卡按钮
 def punchin_btn(driver):
-    sleep(5)
+    sleep(1)
     try:
         elem_dengji = wait.until(EC.presence_of_element_located((By.XPATH, "//div[@id='app']/div/div[2]/div/div[1]")))
     except TimeoutException as e:
         print("登记按钮元素超时\r\n")
-        pass
+        os.system('python3 ' + realpath)
     ActionChains(driver).move_to_element(elem_dengji).click(elem_dengji).perform()
     sleep(0.2)
 # 修改按钮
@@ -197,7 +199,7 @@ def punchin_btn(driver):
         elem_fix_btn = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "fix_btn")))
     except TimeoutException as e:
         print("修改按钮元素超时\r\n")
-        pass
+        os.system('python3 ' + realpath)
     ActionChains(driver).move_to_element(elem_fix_btn).click(elem_fix_btn).perform()
     sleep(0.2)
 
@@ -209,8 +211,10 @@ def punchin_btn(driver):
         print("Element Reference Exception error!!!")
     except TimeoutException as e:
         print("Time out!!")
+        os.system('python3 ' + realpath)
     except ElementClickInterceptedException as ECIE:
         print("元素被其他元素挡住了。报ElementClickInterceptedException异常。")
+        os.system('python3 ' + realpath)
 
 
 # 休息天打卡
@@ -220,7 +224,7 @@ def rest_btn(driver):
         elem_dengji = wait.until(EC.presence_of_element_located((By.XPATH, "//div[@id='app']/div/div[2]/div/div[1]")))
     except TimeoutException as e:
         print("（每日登记按钮）元素超时\r\n")
-        pass
+        os.system('python3 ' + realpath)
     ActionChains(driver).move_to_element(elem_dengji).click(elem_dengji).perform()
     sleep(0.1)
 
@@ -229,7 +233,7 @@ def rest_btn(driver):
         elem_fix_btn = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "fix_btn")))
     except TimeoutException as e:
         print("(修改按钮)元素超时\r\n")
-        pass
+        os.system('python3 ' + realpath)
     ActionChains(driver).move_to_element(elem_fix_btn).click(elem_fix_btn).perform()
     sleep(0.1)
 
@@ -238,7 +242,7 @@ def rest_btn(driver):
         elem_fugang_btn = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "fugangClass")))
     except TimeoutException as e:
         print("（居家办公）元素超时\r\n")
-        pass
+        os.system('python3 ' + realpath)
     ActionChains(driver).move_to_element(elem_fugang_btn).click(elem_fugang_btn).perform()
     sleep(0.5)
 # 选择"居家办公"
@@ -246,7 +250,7 @@ def rest_btn(driver):
         elem_jujia = wait.until(EC.presence_of_element_located((By.XPATH, "//li[@class='van-picker-column__item'][1]/div[@class='van-ellipsis']")))
     except TimeoutException as e:
         print("元素van-ellipsis（居家办公）超时\r\n")
-        pass
+        os.system('python3 ' + realpath)
     ActionChains(driver).move_to_element(elem_jujia).click(elem_jujia).perform()
     sleep(0.1)
 # 选择确认
@@ -254,6 +258,7 @@ def rest_btn(driver):
         elem_confirm_btn = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "van-picker__confirm")))
     except TimeoutException as e:
         print("元素vpan-picker_confirm（确认）超时了。。。\r\n")
+        os.system('python3 ' + realpath)
     ActionChains(driver).move_to_element(elem_confirm_btn).click(elem_confirm_btn).perform()
     sleep(0.1)
 # 最后才提交
@@ -265,8 +270,10 @@ def rest_btn(driver):
         print("Element Reference Exception error!!!\r\n")
     except TimeoutException as e:
         print("Time out!!\r\n")
+        os.system('python3 ' + realpath)
     except ElementClickInterceptedException as ECTE:
         print("元素被其他元素挡住了。报ElementClickInterceptedException异常\r\n")
+        os.system('python3 ' + realpath)
 
 
 def main():
@@ -276,10 +283,10 @@ def main():
     if r.status_code == 200:
         pass
     else:
-        print("[-] oh!!shit!!网站故障（找程序猿祭天去），或者不用打卡（太好了）。。")
+        print("[+] oh!!shit!!网站故障（找程序猿祭天去），或者不用打卡（太好了）。。")
         sleep(5)
         sys.exit()
-    driver1=login(driver, url)
+    driver1 = login(driver, url)
 # 判断是否是节假日和调休
     s = requests.Session()
     s.mount('http://', HTTPAdapter(max_retries=5))
@@ -295,7 +302,7 @@ def main():
     try:
         success = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "hb_bg")))
         if success:
-            print("[-].登录成功！！准备打卡。")
+            print("[+].登录成功！！准备打卡。")
             if (holiday_type == 1) or (holiday_type == 2):
                 rest_btn(driver1)
             else:
@@ -310,7 +317,7 @@ def main():
             # refresh_elem = driver.find_element_by_xpath("//div[@class='slide-verify-refresh-icon']")
             refresh_elem.click()
         except :
-            break
+            os.system('python3 ' + realpath)
         bkg, blk = get_image(driver1)
         distance, template = get_distance(bkg, blk)
         #show(template)
@@ -320,19 +327,19 @@ def main():
         try:
             success = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "hb_bg")))
             if success:
-                print("[-].登录成功！！准备打卡。")
+                print("[+].登录成功！！准备打卡。")
                 break
         except :
-            print("[-]验证码识别错误，正在第%d次验证码重试。\r\n" % counter)
+            print("[+]验证码识别错误，正在第%d次验证码重试。\r\n" % counter)
             sleep(3)
             continue
 
     if (holiday_type == 1) or (holiday_type == 2):
         rest_btn(driver1)
-        print("[-].打卡成功！准备退出。")
+        print("[+].打卡成功！准备退出。")
     else:
         punchin_btn(driver1)
-        print("[-].打卡成功！准备退出。")
+        print("[+].打卡成功！准备退出。")
 
     sleep(3)
     driver.quit()
@@ -340,5 +347,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
