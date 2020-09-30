@@ -12,7 +12,7 @@
 - **查看Chrome版本**.由于用到Chromedriver， 使用脚本前，请先查看自己的chrome版本号。![alt tag](/pic/chrome_version.png)
 - **下载chromedriver**.比如是84.0.4147.125，然后去[chromedriver官网](https://chromedriver.storage.googleapis.com/index.html)下载最接近的版本。
   ![alt tag](/pic/downdriver.png)
-- **修改脚本**. 需要修改的地方有四个：chromedriver的路径，登录的手机号码，以及登录密码和push+的token ![alt tag](/pic/change.png).
+- **修改脚本**. 需要修改的地方有四个：chromedriver的路径，登录的手机号码，以及登录密码和push+的token ![alt tag](/pic/change1.png).
 -  **获取push+ Token**. 新版本由于增加了微信消息推送功能，这里需要注册一个push+的token，首先，请访问以下网站：
 http://pushplus.hxtrip.com/login
  ![alt tag](/pic/pushpluslogin.png)
