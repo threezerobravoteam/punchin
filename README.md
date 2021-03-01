@@ -1,4 +1,7 @@
-# 电科云nCov2019自动打卡（中秋节快乐） - 使用说明 
+# 电科云nCov2019自动打卡 - 使用说明 
+
+- 2021/3/1 更新：修复某处可能导致超时异常的处理。
+- 2021/1/24 更新：修复opncv可能出现异常的处理，以及新增小帮手在维护时的处理。
 
 - **本次更新新增了微信消息推送功能。**
 - **脚本严禁用于非法测试**: 由于HW等原因，怀疑被红队利用该脚本进行暴力破解，所以这里提醒一下，该脚本仅用于打卡使用，不得用于非法测试，否则后果自负。
@@ -20,7 +23,7 @@ http://pushplus.hxtrip.com/login
  ![alt tag](/pic/token.png)
  然后将pushplus_token改为刚刚得到的token。
 -  **安装python依赖库**. 需要安装多个python库，执行以下命令：
-  pip3 install -r requirements.txt -i https://pypi.douban.com/simple
+  pip install -r requirements.txt -i https://pypi.douban.com/simple
 -  **设置任务计划**. 在任务计划中设置每天晚上或者每天早上定时打卡 
  ![alt tag](/pic/task.png)
 
