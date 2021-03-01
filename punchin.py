@@ -11,17 +11,21 @@ from selenium.webdriver.support.ui import WebDriverWait
 from requests.exceptions import RequestException
 from selenium.webdriver.common.by import By
 from requests.adapters import HTTPAdapter
-import time, json, sys , os, cv2
+import time, json, sys , os, cv2,re
 import requests, datetime
 from time import sleep
 import numpy as np
+import configparser
+#import wx_msg
 
 
-# 参数设置1
-chrome_driver = 'chromedriver路径'
-phone_num = '登录手机号码'
-password = '登录密码'
-pushplus_token = 'push+的token'
+# 读取配置参数
+config = configparser.ConfigParser()
+config.read('CONFIG')
+chrome_driver = config['chrome_driver']['url']
+phone_num = config['cetc']['phone']
+password = config['cetc']['password']
+pushplus_token = config['pushplus']['token']
 url = 'https://asst.cetccloud.com/#/login'
 
 # 参数设置2
@@ -32,6 +36,7 @@ counter = 1
 holiday_api ='http://timor.tech/api/holiday/info/' + str(t)
 headers = {'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:80.0) Gecko/20100101 Firefox/80.0"}
 options = webdriver.ChromeOptions()
+# options.add_argument("--no--sandbox")
 options.add_argument('user-agent="Mozilla/5.0 (iPhone; CPU iPhone OS 11_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15F79 MicroMessenger/7.0.11(0x17000b21) NetType/WIFI Language/zh_CN"')
 # 这里我用的google的驱动。
 driver = webdriver.Chrome(executable_path = chrome_driver, chrome_options = options)
@@ -60,6 +65,7 @@ def banner():
     print("Y8,     a88   `8ba,  ,ad8'     `8bd8'  `8bd8'    88  aa    ]8I  88       88 ")
     print(" \"Y888888P'     \"Y8888P\"         YP      YP      88  `\"YbbdP\"'  88       88 ")
     print("\r\n Author: @KimJongun \r\n")
+    print("电科云自动打卡")
 
 
 # 微信自动消息推送
@@ -77,7 +83,7 @@ def login(driver,url):
             print("[+].正在玩命加载小帮手页面")
             break
         except TimeoutException as e:
-            print("Time out Exception: \n" )
+            print("Time out Exception\n" )
             continue
 
     try:
@@ -85,10 +91,10 @@ def login(driver,url):
         passwd = wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='login_content_field'][2]//input[@class='van-field__control']")))
         login_btn = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "login_btn")))
     except TimeoutException as e:
-        print("[-]登录元素超时：" )
+        print("[-]登录元素超时：%s" % e)
         wechat_push('登录元素超时异常，可能是高峰时间段，正在重新启动程序！','时间是：' + date_str )
         driver.quit()
-        os.system('python3 ' + realpath)
+        os.system('python ' + realpath)
         sys.exit()
     username.send_keys(phone_num)
     passwd.send_keys(password)
@@ -117,20 +123,20 @@ def get_image(driver):
                 print("[-]获取不到刷新验证码的元素！\n" )
                 wechat_push('获取不到刷新验证码的元素!可能是高峰时间段，正在重新启动程序！','时间是：' + date_str )
                 driver.quit()
-                os.system('python3 ' + realpath)
+                os.system('python ' + realpath)
                 sys.exit()
         else:
             if (bkg_elem and blk_elem):
                 break
 
-    resp1 = requests.get(bkg_elem, headers = headers)
+    bkg_img = requests.get(bkg_elem, headers = headers)
     with open('slide_bkg.png', 'wb+') as bkg:
-        bkg.write(resp1.content)
+        bkg.write(bkg_img.content)
         bkg.close()
 
-    resp2 = requests.get(blk_elem, headers = headers)
+    blk_img = requests.get(blk_elem, headers = headers)
     with open('slide_block.png', 'wb+') as blk:
-        blk.write(resp2.content)
+        blk.write(blk_img.content)
         blk.close()
 
     return 'slide_bkg.png', 'slide_block.png'
@@ -138,22 +144,29 @@ def get_image(driver):
 
 # 计算缺口的位置，由于缺口位置查找偶尔会出现找不准的现象，这里进行判断，如果查找的缺口位置x坐标小于260，我们进行刷新验证码操作，重新计算缺口位置，直到满足条件为止。（设置为260的原因是因为缺口出现位置的x坐标都大于260）
 def get_distance(bkg,blk ,driver):
-    block = cv2.imread(blk, 0)
-    template = cv2.imread(bkg, 0)
-    w, h = block.shape[::-1]
-    cv2.imwrite('template.jpg', template)
-    cv2.imwrite('block.jpg', block)
-    block = cv2.imread('block.jpg')
-    block = cv2.cvtColor(block, cv2.COLOR_BGR2GRAY)
-    block = abs(255 - block)
-    cv2.imwrite('block.jpg', block)
-    block = cv2.imread('block.jpg')
-    template = cv2.imread('template.jpg')
+    try:
+        block = cv2.imread(blk, 0)
+        template = cv2.imread(bkg, 0)
+        w, h = block.shape[::-1]
+        cv2.imwrite('template.jpg', template)
+        cv2.imwrite('block.jpg', block)
+        block = cv2.imread('block.jpg')
+        block = cv2.cvtColor(block, cv2.COLOR_BGR2GRAY)
+        block = abs(255 - block)
+        cv2.imwrite('block.jpg', block)
+        block = cv2.imread('block.jpg')
+        template = cv2.imread('template.jpg')
+        result = cv2.matchTemplate(block,template,cv2.TM_CCOEFF_NORMED)
+        x, y = np.unravel_index(result.argmax(),result.shape)
+        #这里就是下图中的绿色框框
+        cv2.rectangle(template, (y, x), (y + w, x + h), (7, 249, 151), 2)
+    except :
+        print("[-]图片异常！ \n")
+        wechat_push('图片异常，正在重新启动程序！','时间是：' + date_str )
+        driver.quit()
+        os.system('python ' + realpath)
+        sys.exit()
 
-    result = cv2.matchTemplate(block,template,cv2.TM_CCOEFF_NORMED)
-    x, y = np.unravel_index(result.argmax(),result.shape)
-    #这里就是下图中的绿色框框
-    cv2.rectangle(template, (y, x), (y + w, x + h), (7, 249, 151), 2)
     print('[-].验证码的x坐标为：%d'% y)
     if y > 260:
         try:
@@ -161,7 +174,7 @@ def get_distance(bkg,blk ,driver):
         except NoSuchElementException as NSEE:
             print("[-]没有找到验证码刷新元素  \n")
             driver.quit()
-            os.system('python3 ' + realpath)
+            os.system('python ' + realpath)
             sys.exit()
         sleep(1)
         elem.click()
@@ -211,9 +224,18 @@ def punchin_btn(driver):
         print("登记按钮元素超时  \r\n")
         wechat_push('登记按钮元素超时，正在重新启动程序！','时间是：' + date_str )
         driver.quit()
-        os.system('python3 ' + realpath)
+        os.system('python ' + realpath)
         sys.exit()
-    ActionChains(driver).move_to_element(elem_dengji).click(elem_dengji).perform()
+    sleep(1)
+    try:
+        ActionChains(driver).move_to_element(elem_dengji).click(elem_dengji).perform()
+    except StaleElementReferenceException:
+        print("旧元素引用异常：元素没有附加到页面文档  \r\n")
+        wechat_push('旧元素引用异常：元素没有附加到页面文档，正在重新启动程序！','时间是：' + date_str )
+        driver.quit()
+        os.system('python ' + realpath)
+        sys.exit()
+
 # 修改按钮
     try:
         elem_fix_btn = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "fix_btn")))
@@ -221,29 +243,37 @@ def punchin_btn(driver):
         print("修改按钮元素超时  \r\n")
         wechat_push('修改按钮元素超时，正在重新启动程序！','时间是：' + date_str )
         driver.quit()
-        os.system('python3 ' + realpath)
+        os.system('python ' + realpath)
         sys.exit()
-    ActionChains(driver).move_to_element(elem_fix_btn).click(elem_fix_btn).perform()
-    sleep(0.2)
+    sleep(1)
+    try:
+        ActionChains(driver).move_to_element(elem_fix_btn).click(elem_fix_btn).perform()
+    except StaleElementReferenceException:
+        print("旧元素引用异常：元素没有附加到页面文档  \r\n")
+        wechat_push('旧元素引用异常：元素没有附加到页面文档，正在重新启动程序！','时间是：' + date_str )
+        driver.quit()
+        os.system('python ' + realpath)
+        sys.exit()
+    sleep(2)
 # 提交按钮
     try:
         elem_slot_btn = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "slot_span")))
         ActionChains(driver).move_to_element(elem_slot_btn).click(elem_slot_btn).perform()
     except StaleElementReferenceException:
-        print("Element Reference Exception error!!!")
+        print("旧元素引用异常：元素没有附加到页面文档!!!")
         driver.quit()
-        os.system('python3 ' + realpath)
+        os.system('python ' + realpath)
         sys.exit()
     except TimeoutException as e:
         print("Time out Exception  \r\n")
         driver.quit()
-        os.system('python3 ' + realpath)
+        os.system('python ' + realpath)
         sys.exit()
     except ElementClickInterceptedException as ECIE:
         print("元素被其他元素挡住了。报ElementClickInterceptedException异常。 \r\n")
         wechat_push('元素被其他元素挡住','时间是：' + date_str )
         driver.quit()
-        os.system('python3 ' + realpath)
+        os.system('python ' + realpath)
         sys.exit()
 
 
@@ -257,10 +287,22 @@ def rest_btn(driver):
         print("[-]（每日登记按钮）元素超时\r\n")
         wechat_push('登记按钮元素超时，正在重新启动程序！','时间是：' + date_str  )
         driver.quit()
-        os.system('python3 ' + realpath)
+        os.system('python ' + realpath)
         sys.exit()
-    ActionChains(driver).move_to_element(elem_dengji).click(elem_dengji).perform()
-    sleep(0.1)
+    sleep(1)
+    try:
+        ActionChains(driver).move_to_element(elem_dengji).click(elem_dengji).perform()
+    except StaleElementReferenceException:
+        print("旧元素引用异常：元素没有附加到页面文档!!!")
+        driver.quit()
+        os.system('python ' + realpath)
+        sys.exit()
+    except TimeoutException:
+        print("Time out Exception  \r\n")
+        driver.quit()
+        os.system('python ' + realpath)
+        sys.exit()
+    sleep(1)
 
 # 修改按钮
     try:
@@ -269,10 +311,17 @@ def rest_btn(driver):
         print("[-](修改按钮)元素超时\r\n")
         wechat_push('修改按钮元素超时，正在重新启动程序！','时间是：' + date_str  )
         driver.quit()
-        os.system('python3 ' + realpath)
+        os.system('python ' + realpath)
         sys.exit()
-    ActionChains(driver).move_to_element(elem_fix_btn).click(elem_fix_btn).perform()
-    sleep(0.1)
+    sleep(1)
+    try:
+        ActionChains(driver).move_to_element(elem_fix_btn).click(elem_fix_btn).perform()
+    except StaleElementReferenceException:
+        print("旧元素引用异常：元素没有附加到页面文档!!!")
+        driver.quit()
+        os.system('python ' + realpath)
+        sys.exit()
+    sleep(1)
 
 # 修改复岗情况为"居家办公"
     try:
@@ -281,7 +330,7 @@ def rest_btn(driver):
         print("[-]（居家办公）元素超时\r\n")
         wechat_push('居家办公元素超时，正在重新启动程序！','时间是：' + date_str  )
         driver.quit()
-        os.system('python3 ' + realpath)
+        os.system('python ' + realpath)
         sys.exit()
     ActionChains(driver).move_to_element(elem_fugang_btn).click(elem_fugang_btn).perform()
     sleep(0.5)
@@ -292,10 +341,17 @@ def rest_btn(driver):
         print("[-]元素van-ellipsis（居家办公）超时\r\n")
         wechat_push('元素van-ellipsis居家办公超时，正在重新启动程序！','时间是：' + date_str )
         driver.quit()
-        os.system('python3 ' + realpath)
+        os.system('python ' + realpath)
         sys.exit()
-    ActionChains(driver).move_to_element(elem_jujia).click(elem_jujia).perform()
-    sleep(0.1)
+    sleep(1)
+    try:
+        ActionChains(driver).move_to_element(elem_jujia).click(elem_jujia).perform()
+    except StaleElementReferenceException:
+        print("旧元素引用异常：元素没有附加到页面文档!!!")
+        driver.quit()
+        os.system('python ' + realpath)
+        sys.exit()
+    sleep(1)
 # 选择确认
     try:
         elem_confirm_btn = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "van-picker__confirm")))
@@ -303,9 +359,16 @@ def rest_btn(driver):
         print("[-]元素vpan-picker_confirm（确认）超时。\r\n")
         wechat_push('确认元素超时，正在重新启动程序','时间是：' + date_str )
         driver.quit()
-        os.system('python3 ' + realpath)
+        os.system('python ' + realpath)
         sys.exit()
-    ActionChains(driver).move_to_element(elem_confirm_btn).click(elem_confirm_btn).perform()
+    sleep(1)
+    try:
+        ActionChains(driver).move_to_element(elem_confirm_btn).click(elem_confirm_btn).perform()
+    except StaleElementReferenceException:
+        print("旧元素引用异常：元素没有附加到页面文档!!!")
+        driver.quit()
+        os.system('python ' + realpath)
+        sys.exit()
     sleep(0.1)
 # 最后才提交
     try:
@@ -315,41 +378,52 @@ def rest_btn(driver):
     except StaleElementReferenceException:
         print("[-]Element Reference Exception error!\r\n")
         driver.quit()
-        os.system('python3 ' + realpath)
+        os.system('python ' + realpath)
         sys.exit()
     except TimeoutException as e:
         print("[-]Time out!!\r\n")
         wechat_push('超时，正在重新启动程序','时间是：' + date_str )
         driver.quit()
-        os.system('python3 ' + realpath)
+        os.system('python ' + realpath)
         sys.exit()
     except ElementClickInterceptedException as ECTE:
         print("[-]元素被其他元素挡住，报ElementClickInterceptedException异常\r\n")
         wechat_push('元素被其他元素挡住，正在重新启动程序','时间是：' + date_str )
         driver.quit()
-        os.system('python3 ' + realpath)
+        os.system('python ' + realpath)
         sys.exit()
 
 
 def main():
     banner()
     global counter
-    r = requests.get(url)
-    if r.status_code == 200:
+    try:
+        r = requests.get(url, headers = headers, timeout = 20)
+    except :
+        print("[-]可能存在超时，正在重新启动程序。\r\n")
+        wechat_push('超时，正在重新启动程序','时间是：' + date_str )
+        driver.quit()
+        os.system('python ' + realpath)
+        sys.exit()
+    r.encoding = r.apparent_encoding
+    title = re.findall("<title>(.*)</title>", r.text, re.IGNORECASE)[0].strip()
+    if (r.status_code == 200) and (title == '小帮手'):
         pass
     else:
-        print("[+] 网站故障（找程序猿祭天去），或者不用打卡（太好了）。。")
+        print("[+] 网站故障（找程序猿祭天去），出现非200状态码，或者不用打卡（太好了）。。")
+        wechat_push('网站出现非200的状态码','时间是：' + date_str  )
         sleep(5)
         sys.exit()
     driver1 = login(driver, url)
 # 判断是否是节假日和调休
     s = requests.Session()
-    s.mount('http://', HTTPAdapter(max_retries = 5))
-    s.mount('https://', HTTPAdapter(max_retries = 5))
+    s.mount('http://', HTTPAdapter(max_retries=5))
+    s.mount('https://', HTTPAdapter(max_retries=5))
     try:
         response = s.get(holiday_api, headers = headers, timeout = 12)
     except RequestException as e:
         print("请求异常\r\n")
+        wechat_push('节假日接口API出现异常，请联系作者！','时间是：' + date_str  )
 
     d = json.loads(response.text)
     holiday_type = d['type']['type']
@@ -374,7 +448,7 @@ def main():
             print("[-]刷新元素超时")
             driver.quit()
             wechat_push('刷新元素超时，可能是高峰时间段，正在重新启动程序！','时间是：' + date_str )
-            os.system('python3 ' + realpath)
+            os.system('python ' + realpath)
             sys.exit()
 
         bkg, blk = get_image(driver1)
@@ -397,9 +471,10 @@ def main():
         rest_btn(driver1)
     else:
         punchin_btn(driver1)
-    
-    wechat_push('打卡成功','时间是：' + date_str)
+    wechat_push('电科云打卡成功','时间是：' + date_str)
     print("[+] wechat消息已推送")
+    #txt = '【1】电科云打卡成功（本消息由脚本自动发送，请自行忽略），请不要挤兑！记得换京东卡！！ ' + date_str
+    #wx_msg.send_wx_msg(txt)
     print("[+] 打卡成功，准备退出")
     sleep(3)
     driver.quit()
