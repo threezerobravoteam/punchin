@@ -1,0 +1,9 @@
+[chrome_driver]
+url = E:\chrome_driver\chromedriver.exe
+
+[cetc]
+phone = 手机号码
+password = 登录密码
+
+[pushplus]
+token = push+的token
